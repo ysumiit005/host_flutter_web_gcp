@@ -55,6 +55,6 @@ jobs:
           args: 'your-load-balancer-url-map-name --path "/*"' # Replace 'your-load-balancer-url-map-name'
 
       - name: Get Public URL
-        run: echo "Your Flutter app should be live at: https://storage.googleapis.com/YOUR_GCS_BUCKET_NAME/index.html"
+        run: echo "Your Flutter app should be live at: https://storage.googleapis.com/flutter_bucket_web/index.html"
         # If using Cloud CDN and custom domain, the URL will be your domain:
         # run: echo "Your Flutter app should be live at: https://YOUR_CUSTOM_DOMAIN/"
