@@ -1,0 +1,60 @@
+name: Deploy Flutter Web to GCS
+
+on:
+  push:
+    branches:
+      - main # This workflow runs on pushes to the 'main' branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read' # Allow reading the repository content
+      id-token: 'write' # Required for OIDC authentication (better than service account key if configured)
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable' # or 'beta' if you need it
+
+      - name: Get Flutter dependencies
+        run: flutter pub get
+
+      - name: Build Flutter Web App
+        run: flutter build web --release
+
+      - name: Authenticate to GCP
+        # This action uses the service account key stored as a GitHub secret
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Upload to Google Cloud Storage
+        # This action uploads the built web files to your GCS bucket
+        uses: google-github-actions/upload-cloud-storage@v2
+        with:
+          path: 'build/web' # The directory where Flutter builds the web output
+          destination: 'YOUR_GCS_BUCKET_NAME' # Replace with your GCS bucket name
+          parent: false # Uploads contents of 'build/web' directly to bucket root
+          gzip: true # Gzip files for better performance
+          predefinedAcl: 'publicRead' # Make uploaded files publicly readable
+
+      - name: Invalidate Cloud CDN Cache (Optional but Recommended)
+        # This ensures your new changes are visible immediately via CDN
+        # This step requires the 'Compute Network Admin' role for the service account
+        # or a custom role with 'compute.urlMaps.invalidateCache' permission.
+        if: success() # Only run if previous steps succeeded
+        uses: google-github-actions/gcloud@v2
+        with:
+          project_id: YOUR_GCP_PROJECT_ID # Replace with your GCP project ID
+          command: compute url-maps invalidate-cdn-cache
+          args: 'your-load-balancer-url-map-name --path "/*"' # Replace 'your-load-balancer-url-map-name'
+
+      - name: Get Public URL
+        run: echo "Your Flutter app should be live at: https://storage.googleapis.com/YOUR_GCS_BUCKET_NAME/index.html"
+        # If using Cloud CDN and custom domain, the URL will be your domain:
+        # run: echo "Your Flutter app should be live at: https://YOUR_CUSTOM_DOMAIN/"
